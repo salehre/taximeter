@@ -1,0 +1,44 @@
+#pragma once
+#include "GPSProvider.h"
+#include <cmath>
+#include <cstdlib>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+// یک منبع GPS ساختگی: هر بار که update() صدا زده شود، یک قدم کوچک
+// (حدود ۸ متر، معادل تقریبی سرعت شهری) در یک جهت نیمه‌تصادفی حرکت می‌کند.
+// دقیقاً همان اینترفیس GPSProvider را پیاده می‌کند، پس در آینده با
+// Esp32GPSProvider (که از ماژول واقعی می‌خواند) بدون تغییر جای بقیه‌ی کد عوض می‌شود.
+class SimulatedGPSProvider : public GPSProvider {
+    double lat, lon, bearing;
+    UpdateCallback updateCb;
+    ErrorCallback errorCb;
+
+public:
+    SimulatedGPSProvider(double startLat = 35.700000, double startLon = 51.400000)
+        : lat(startLat), lon(startLon), bearing(rand() % 360) {}
+
+    void begin() override {}
+    void onUpdate(UpdateCallback cb) override { updateCb = cb; }
+    void onError(ErrorCallback cb) override { errorCb = cb; }
+
+    void update() override {
+        double stepMeters = 8.0;
+        double R = 6371000.0;
+        double brng = bearing * M_PI / 180.0;
+        double lat1 = lat * M_PI / 180.0, lon1 = lon * M_PI / 180.0;
+
+        double lat2 = asin(sin(lat1) * cos(stepMeters / R) +
+                            cos(lat1) * sin(stepMeters / R) * cos(brng));
+        double lon2 = lon1 + atan2(sin(brng) * sin(stepMeters / R) * cos(lat1),
+                                    cos(stepMeters / R) - sin(lat1) * sin(lat2));
+
+        lat = lat2 * 180.0 / M_PI;
+        lon = lon2 * 180.0 / M_PI;
+        bearing += ((rand() % 1000) / 1000.0 - 0.5) * 25.0;
+
+        if (updateCb) updateCb(GPSReading{lat, lon, 5.0, 0});
+    }
+};
