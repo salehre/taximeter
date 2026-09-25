@@ -2,10 +2,16 @@
 #include "GPSProvider.h"
 #include <cmath>
 #include <cstdlib>
+#include <chrono>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+inline unsigned long desktopNowMs() {
+    using namespace std::chrono;
+    return (unsigned long) duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
+}
 
 // یک منبع GPS ساختگی: هر بار که update() صدا زده شود، یک قدم کوچک
 // (حدود ۸ متر، معادل تقریبی سرعت شهری) در یک جهت نیمه‌تصادفی حرکت می‌کند.
@@ -15,6 +21,7 @@ class SimulatedGPSProvider : public GPSProvider {
     double lat, lon, bearing;
     UpdateCallback updateCb;
     ErrorCallback errorCb;
+    bool enabled = true;
 
 public:
     SimulatedGPSProvider(double startLat = 35.700000, double startLon = 51.400000)
@@ -24,7 +31,13 @@ public:
     void onUpdate(UpdateCallback cb) override { updateCb = cb; }
     void onError(ErrorCallback cb) override { errorCb = cb; }
 
+    // برای تست هشدار GPS ضعیف: وقتی خاموش است دیگر هیچ خوانشی تولید نمی‌شود،
+    // اما (برخلاف قطع کردن کل حلقه‌ی سیستم) TaxiMeterSystem::loop() همچنان صدا زده
+    // می‌شود، پس منطق تشخیص قطعی سیگنال واقعاً اجرا و آزمایش می‌شود.
+    void setEnabled(bool e) { enabled = e; }
+
     void update() override {
+        if (!enabled) return;
         double stepMeters = 8.0;
         double R = 6371000.0;
         double brng = bearing * M_PI / 180.0;
@@ -39,6 +52,6 @@ public:
         lon = lon2 * 180.0 / M_PI;
         bearing += ((rand() % 1000) / 1000.0 - 0.5) * 25.0;
 
-        if (updateCb) updateCb(GPSReading{lat, lon, 5.0, 0});
+        if (updateCb) updateCb(GPSReading{lat, lon, 5.0, desktopNowMs()});
     }
 };

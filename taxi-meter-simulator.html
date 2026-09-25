@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شبیه‌ساز تاکسی‌متر هوشمند</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#11151C;
+    --panel:#1A1F28;
+    --panel-2:#20262f;
+    --border:#2B3140;
+    --ink:#E8EAF0;
+    --ink-muted:#8D95A5;
+    --accent:#4FA8E8;
+    --accent-ink:#06202f;
+    --good:#33D17A;
+    --bad:#FF5B5B;
+    --bezel-1:#232019;
+    --bezel-2:#0f0d0a;
+    --screen-bg:#1c1306;
+    --amber:#ffb238;
+    --amber-dim:#7a5a1e;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #1b2230 0%, transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans Arabic','IBM Plex Sans',sans-serif;
+    min-height:100vh;
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+
+  header{margin-bottom:26px;}
+  header h1{
+    font-size:26px;
+    font-weight:700;
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    margin:0;
+    color:var(--ink-muted);
+    font-size:14.5px;
+    line-height:1.8;
+    max-width:72ch;
+  }
+  header code{
+    font-family:'IBM Plex Mono',monospace;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:1px 6px;
+    font-size:13px;
+    color:var(--amber);
+    direction:ltr;
+    display:inline-block;
+  }
+
+  .layout{
+    display:grid;
+    grid-template-columns:340px 1fr;
+    gap:22px;
+    align-items:start;
+  }
+  @media (max-width:880px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  /* ---------- device mock ---------- */
+  .device-col{position:sticky; top:20px;}
+  @media (max-width:880px){ .device-col{position:static;} }
+
+  .bezel{
+    background:
+      linear-gradient(155deg, var(--bezel-1), var(--bezel-2) 70%);
+    border-radius:22px;
+    padding:22px 20px 26px;
+    box-shadow:
+      0 30px 60px -25px rgba(0,0,0,.7),
+      inset 0 1px 0 rgba(255,255,255,.06);
+    border:1px solid #000;
+  }
+  .bezel-label{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:12px;
+    direction:ltr;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:.06em;
+    color:#7a7568;
+  }
+  .leds{display:flex; gap:10px; align-items:center;}
+  .led{width:7px;height:7px;border-radius:50%; background:#3a3a3a; box-shadow:inset 0 0 0 1px #000;}
+  .led.on-good{background:var(--good); box-shadow:0 0 6px var(--good);}
+  .led.on-bad{background:var(--bad); box-shadow:0 0 6px var(--bad); animation:blink 1s infinite;}
+  .led.on-amber{background:var(--amber); box-shadow:0 0 6px var(--amber);}
+  .led.on-full{background:#ff9f1c; box-shadow:0 0 7px #ff9f1c;}
+  @keyframes blink{50%{opacity:.25;}}
+
+  .screen{
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0px, rgba(0,0,0,.18) 1px, transparent 1px, transparent 3px),
+      radial-gradient(120% 140% at 30% 0%, #2a1c08 0%, var(--screen-bg) 70%);
+    border-radius:8px;
+    padding:16px 16px 14px;
+    min-height:220px;
+    box-shadow:inset 0 2px 10px rgba(0,0,0,.6), inset 0 0 40px rgba(255,178,56,.05);
+    direction:ltr;
+    text-align:left;
+  }
+  .screen-line{
+    font-family:'VT323',monospace;
+    font-size:22px;
+    line-height:1.35;
+    color:var(--amber);
+    text-shadow:0 0 6px rgba(255,178,56,.55);
+    letter-spacing:.02em;
+    white-space:pre;
+  }
+  .screen-line.dim{color:var(--amber-dim); text-shadow:none;}
+  .screen-line.warn{color:var(--bad); text-shadow:0 0 8px rgba(255,91,91,.7); animation:blink 1s infinite;}
+  .screen-msg{
+    font-family:'VT323',monospace;
+    font-size:24px;
+    color:var(--amber);
+    text-shadow:0 0 6px rgba(255,178,56,.55);
+    padding:20px 0;
+    text-align:center;
+  }
+
+  .device-caption{
+    margin-top:14px;
+    font-size:12.5px;
+    color:var(--ink-muted);
+    text-align:center;
+    line-height:1.7;
+  }
+
+  /* ---------- control panels ---------- */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:18px 18px 20px;
+    margin-bottom:18px;
+  }
+  .panel h2{
+    font-size:14px;
+    font-weight:600;
+    margin:0 0 14px;
+    color:var(--ink);
+    display:flex; align-items:center; gap:8px;
+  }
+  .panel h2 .dash{width:16px;height:2px;background:var(--accent); display:inline-block; border-radius:2px;}
+
+  .pax-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px;}
+  @media (max-width:620px){.pax-grid{grid-template-columns:1fr;}}
+  .pax-card{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .pax-top{display:flex; justify-content:space-between; align-items:center;}
+  .pax-name{font-weight:600; font-size:14px; display:flex; align-items:center; gap:7px;}
+  .pax-led{width:8px; height:8px; border-radius:50%; background:#3a4150; box-shadow:inset 0 0 0 1px #000; flex:none;}
+  .pax-led.on{background:var(--good); box-shadow:0 0 6px var(--good);}
+  .badge{
+    font-size:11px; padding:3px 8px; border-radius:99px;
+    border:1px solid var(--border);
+    color:var(--ink-muted);
+    white-space:nowrap;
+  }
+  .badge.active{color:var(--good); border-color:rgba(51,209,122,.4); background:rgba(51,209,122,.08);}
+  .badge.finished{color:var(--accent); border-color:rgba(79,168,232,.4); background:rgba(79,168,232,.08);}
+
+  .pax-stats{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--ink-muted);
+    line-height:1.9;
+    direction:ltr;
+    text-align:left;
+  }
+  .pax-stats b{color:var(--ink); font-weight:600;}
+  .pax-stats .fa{font-family:'IBM Plex Sans Arabic','IBM Plex Sans',sans-serif; color:var(--ink-muted);}
+
+  .btn{
+    border:none; border-radius:8px; padding:10px 12px;
+    font-family:inherit; font-size:13.5px; font-weight:600;
+    cursor:pointer; transition:filter .15s, transform .05s;
+    width:100%;
+  }
+  .btn:active{transform:scale(.98);}
+  .btn.start{background:var(--accent); color:var(--accent-ink);}
+  .btn.stop{background:var(--bad); color:#2b0505;}
+  .btn.reset{background:var(--panel-2); color:var(--ink); border:1px solid var(--border);}
+  .btn:hover{filter:brightness(1.08);}
+
+  .btn-luggage{
+    border:1px dashed var(--border); border-radius:8px; padding:8px 10px;
+    font-family:inherit; font-size:12.5px; font-weight:500;
+    background:var(--panel); color:var(--ink-muted);
+    cursor:pointer; width:100%; position:relative; overflow:hidden;
+    user-select:none; -webkit-user-select:none; touch-action:none;
+  }
+  .btn-luggage:hover:not(.is-disabled){color:var(--ink); border-color:var(--accent);}
+  .btn-luggage.is-disabled{opacity:.35; cursor:not-allowed;}
+  .btn-luggage.holding::after{
+    content:""; position:absolute; inset:0; background:rgba(255,91,91,.28);
+    animation:holdfill .6s linear forwards;
+  }
+  @keyframes holdfill{ from{ transform:scaleX(0);} to{ transform:scaleX(1);} }
+  .btn-luggage.holding::after{ transform-origin:right; }
+  html[dir="rtl"] .btn-luggage.holding::after{ transform-origin:right; }
+
+  .row{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:10px 0; border-bottom:1px dashed var(--border);}
+  .row:last-child{border-bottom:none;}
+  .row-label{font-size:13.5px;}
+  .row-sub{font-size:11.5px; color:var(--ink-muted); margin-top:2px;}
+
+  .switch{position:relative; width:46px; height:26px; flex:none;}
+  .switch input{opacity:0; width:0; height:0;}
+  .slider-tog{
+    position:absolute; inset:0; background:#3a4150; border-radius:99px; cursor:pointer;
+    transition:background .15s;
+  }
+  .slider-tog::before{
+    content:""; position:absolute; width:20px; height:20px; left:3px; top:3px;
+    background:#fff; border-radius:50%; transition:transform .15s;
+  }
+  input:checked + .slider-tog{background:var(--good);}
+  input:checked + .slider-tog::before{transform:translateX(20px);}
+  html[dir="rtl"] input:checked + .slider-tog::before{transform:translateX(-20px);}
+
+  .val-pill{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:3px 8px;
+    color:var(--amber);
+    direction:ltr;
+    min-width:52px;
+    text-align:center;
+  }
+
+  input[type=range]{
+    -webkit-appearance:none; width:100%; height:4px; background:var(--border);
+    border-radius:99px; outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--accent); cursor:pointer; border:2px solid #0c1621;
+  }
+
+  details.rate-settings summary{
+    cursor:pointer; font-size:13px; color:var(--accent); font-weight:600;
+    list-style:none;
+  }
+  details.rate-settings summary::-webkit-details-marker{display:none;}
+  .rate-grid{
+    display:grid; grid-template-columns:repeat(2,1fr); gap:10px 14px;
+    margin-top:14px;
+  }
+  @media (max-width:480px){.rate-grid{grid-template-columns:1fr;}}
+  .field{display:flex; flex-direction:column; gap:5px;}
+  .field label{font-size:12px; color:var(--ink-muted);}
+  .field input{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    padding:7px 9px; color:var(--ink); font-family:'IBM Plex Mono',monospace; font-size:13px;
+    direction:ltr; text-align:left;
+  }
+  .field input:focus{outline:1px solid var(--accent);}
+
+  /* ---------- history ---------- */
+  .hist-head{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
+  table{width:100%; border-collapse:collapse; margin-top:12px; font-size:13px;}
+  th,td{padding:9px 10px; text-align:right; border-bottom:1px solid var(--border);}
+  th{color:var(--ink-muted); font-weight:600; font-size:12px;}
+  td.mono, th.mono{font-family:'IBM Plex Mono',monospace; direction:ltr; text-align:left;}
+  .empty-row td{color:var(--ink-muted); text-align:center; padding:22px 10px; font-size:13px;}
+  .summary-bar{
+    display:flex; gap:22px; flex-wrap:wrap; margin-top:14px; padding-top:14px;
+    border-top:1px solid var(--border);
+  }
+  .summary-item .n{font-family:'IBM Plex Mono',monospace; font-size:19px; color:var(--amber); font-weight:600;}
+  .summary-item .l{font-size:11.5px; color:var(--ink-muted); margin-top:2px;}
+  .clear-btn{
+    background:none; border:1px solid var(--border); color:var(--ink-muted);
+    border-radius:7px; padding:6px 12px; font-size:12px; cursor:pointer; font-family:inherit;
+  }
+  .clear-btn:hover{color:var(--bad); border-color:rgba(255,91,91,.4);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>شبیه‌ساز تاکسی‌متر هوشمند چندمسافره</h1>
+    <p>
+      این صفحه دقیقاً همان منطق فریمور ESP32 پروژه را با جاوااسکریپت بازسازی کرده:
+      کرایه‌ی پایه، نرخ روز/شب، کرایه‌ی زمان انتظار، و منبع مسافت ترکیبی GPS+چرخ.
+      از کنترل‌های کنار دستگاه برای شبیه‌سازی شرایط واقعی رانندگی استفاده کنید و صفحه‌ی
+      دستگاه را زنده تماشا کنید — همان چیزی که روی <code>Esp32Display.h</code> دیده می‌شود.
+    </p>
+  </header>
+
+  <div class="layout">
+
+    <!-- ============ DEVICE MOCK ============ -->
+    <div class="device-col">
+      <div class="bezel">
+        <div class="bezel-label">
+          <span>TAXIMETER-01</span>
+          <span class="leds">
+            <span class="led" id="ledPower"></span>
+            <span class="led" id="ledGps"></span>
+            <span class="led" id="ledWheel"></span>
+            <span class="led" id="ledFull"></span>
+          </span>
+        </div>
+        <div class="screen" id="screen"></div>
+      </div>
+      <div class="device-caption">
+        بزل: دستگاه فیزیکی نصب‌شده در تاکسی &nbsp;·&nbsp;
+        LED از راست به چپ: برق / سیگنال GPS / حسگر چرخ / پر (بدون جای خالی)
+      </div>
+    </div>
+
+    <!-- ============ CONTROLS ============ -->
+    <div class="controls-col">
+
+      <div class="panel">
+        <h2><span class="dash"></span>کنترل مسافران</h2>
+        <div class="pax-grid" id="paxGrid"></div>
+      </div>
+
+      <div class="panel">
+        <h2><span class="dash"></span>شرایط رانندگی</h2>
+
+        <div class="row">
+          <div>
+            <div class="row-label">سیگنال GPS</div>
+            <div class="row-sub">خاموش کنید و ~۸ ثانیه صبر کنید تا هشدار قطعی را ببینید</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="gpsToggle" checked><span class="slider-tog"></span></label>
+        </div>
+
+        <div class="row">
+          <div>
+            <div class="row-label">حسگر پالسی چرخ</div>
+            <div class="row-sub">وقتی روشن است، مسافت از چرخ گرفته می‌شود، نه GPS نویزی</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="wheelToggle"><span class="slider-tog"></span></label>
+        </div>
+
+        <div class="row" style="flex-direction:column; align-items:stretch; gap:8px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span class="row-label">سرعت شبیه‌سازی‌شده</span>
+            <span class="val-pill" id="speedVal">29 km/h</span>
+          </div>
+          <input type="range" id="speedSlider" min="0" max="60" step="1" value="29">
+          <div class="row-sub" id="speedNote"></div>
+        </div>
+
+        <div class="row" style="flex-direction:column; align-items:stretch; gap:8px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span class="row-label">ساعت شبیه‌سازی‌شده</span>
+            <span class="val-pill" id="hourVal">14:00</span>
+          </div>
+          <input type="range" id="hourSlider" min="0" max="23" step="1" value="14">
+          <div class="row-sub" id="hourNote"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <details class="rate-settings">
+          <summary>تنظیمات نرخ کرایه (پیشرفته)</summary>
+          <div class="rate-grid">
+            <div class="field"><label>کرایه‌ی پایه (تومان)</label><input type="number" id="cfgBase" value="15000"></div>
+            <div class="field"><label>هر واحد مسافت (متر)</label><input type="number" id="cfgUnit" value="50"></div>
+            <div class="field"><label>نرخ روز (تومان/واحد)</label><input type="number" id="cfgDay" value="500"></div>
+            <div class="field"><label>نرخ شب (تومان/واحد)</label><input type="number" id="cfgNight" value="750"></div>
+            <div class="field"><label>شروع نرخ شب (ساعت)</label><input type="number" id="cfgNightStart" value="22"></div>
+            <div class="field"><label>پایان نرخ شب (ساعت)</label><input type="number" id="cfgNightEnd" value="6"></div>
+            <div class="field"><label>واحد زمان انتظار (ثانیه)</label><input type="number" id="cfgWaitUnit" value="60"></div>
+            <div class="field"><label>کرایه‌ی هر واحد انتظار (تومان)</label><input type="number" id="cfgWaitCharge" value="3000"></div>
+            <div class="field"><label>آستانه‌ی توقف (کیلومتر بر ساعت)</label><input type="number" id="cfgMinSpeed" value="5" step="0.5"></div>
+            <div class="field"><label>هزینه‌ی هر چمدون (تومان)</label><input type="number" id="cfgLuggage" value="5000"></div>
+            <div class="field"><label>شروع پله‌بندی بین‌شهری (کیلومتر)</label><input type="number" id="cfgTierStart" value="10"></div>
+            <div class="field"><label>اندازه‌ی هر پله (کیلومتر)</label><input type="number" id="cfgTierSize" value="20"></div>
+            <div class="field"><label>کاهش هر پله نسبت به قبلی (%)</label><input type="number" id="cfgTierReduction" value="15"></div>
+            <div class="field"><label>حداقل نرخ پله (% نرخ اصلی)</label><input type="number" id="cfgTierFloor" value="40"></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel">
+        <div class="hist-head">
+          <h2 style="margin:0;"><span class="dash"></span>تاریخچه‌ی امروز</h2>
+          <button class="clear-btn" id="clearHistBtn">پاک کردن تاریخچه</button>
+        </div>
+        <table>
+          <thead>
+            <tr><th>مسافر</th><th>مسافت</th><th>انتظار</th><th>بار</th><th>ساعت</th><th>کرایه</th></tr>
+          </thead>
+          <tbody id="histBody">
+            <tr class="empty-row"><td colspan="6">هنوز سفری تمام نشده</td></tr>
+          </tbody>
+        </table>
+        <div class="summary-bar">
+          <div class="summary-item"><div class="n" id="sumTrips">0</div><div class="l">تعداد سفر</div></div>
+          <div class="summary-item"><div class="n" id="sumDist">0m</div><div class="l">مجموع مسافت</div></div>
+          <div class="summary-item"><div class="n" id="sumFare">0</div><div class="l">مجموع درآمد (تومان)</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------- state ----------------
+  const cfg = {
+    base:15000, unit:50, day:500, night:750, nightStart:22, nightEnd:6,
+    waitUnit:60, waitCharge:3000, minSpeed:5/3.6, luggageFee:5000,
+    // پله‌بندی مسافت طولانی/بین‌شهری: بعد از tierStartKm، هر tierSizeKm نرخ هر واحد
+    // tierReductionPct درصد نسبت به پله‌ی قبل ارزان‌تر می‌شود، تا سقف پایینِ
+    // tierFloorPct درصد نرخ اصلی (تا کرایه هیچ‌وقت به صفر نزدیک نشود).
+    tierStartKm:10, tierSizeKm:20, tierReductionPct:15, tierFloorPct:40
+  };
+
+  const trips = [0,1,2].map(id => ({ id, state:'idle', day:0, night:0, wait:0, luggage:0 }));
+  let history = [];
+
+  let gpsOn = true, wheelOn = false, speedKmh = 29, hour = 14;
+  let lastGpsMs = Date.now();
+  let gpsWeak = false;
+  let lastSourceWheel = false;
+  let lastWasWaiting = false;
+
+  // ---------------- fare logic (mirrors FareConfig::calc / TaxiMeterSystem::handleReading) ----------------
+  function isNightHour(h){
+    if (h < 0) return false;
+    if (cfg.nightStart <= cfg.nightEnd) return h >= cfg.nightStart && h < cfg.nightEnd;
+    return h >= cfg.nightStart || h < cfg.nightEnd;
+  }
+  // مسافت (متر) این حالت (روز یا شب) را به واحدهای unitMeters تقسیم می‌کند و هر
+  // واحد را طبق پله‌ی مسافتی خودش قیمت‌گذاری می‌کند -- دقیقاً مثل یک تعرفه‌ی پلکانی:
+  // واحدهای تا tierStartKm با نرخ کامل، بعدش هر tierSizeKm یک پله ارزان‌تر، تا سقف
+  // پایین tierFloorPct. توجه: این پله‌بندی برای مسافت روز و شب جدا جدا حساب می‌شود
+  // (نه مجموع کل سفر) -- ساده‌سازی آگاهانه‌ای که برای اکثر سفرها تفاوتی ایجاد نمی‌کند.
+  function tieredUnitFare(distanceMeters, basePrice){
+    const unitCount = Math.floor(distanceMeters / cfg.unit);
+    if (unitCount <= 0) return 0;
+    const thresholdUnits = Math.floor((cfg.tierStartKm * 1000) / cfg.unit);
+    const tierSizeUnits = Math.max(1, Math.floor((cfg.tierSizeKm * 1000) / cfg.unit));
+    const floorPrice = basePrice * (cfg.tierFloorPct / 100);
+
+    let remaining = unitCount;
+    let fare = 0;
+
+    const fullPriceUnits = Math.min(remaining, thresholdUnits);
+    fare += fullPriceUnits * basePrice;
+    remaining -= fullPriceUnits;
+
+    let tierIndex = 0;
+    while (remaining > 0){
+      tierIndex++;
+      const price = Math.max(floorPrice, basePrice * Math.pow(1 - cfg.tierReductionPct / 100, tierIndex));
+      const unitsThisTier = Math.min(remaining, tierSizeUnits);
+      fare += unitsThisTier * price;
+      remaining -= unitsThisTier;
+    }
+    return fare;
+  }
+
+  // فعلی‌ترین پله‌ی فعال برای این مسافت (برای نمایش به راننده -- ۱ یعنی هنوز نرخ کامل)
+  function currentTier(distanceMeters){
+    const thresholdM = cfg.tierStartKm * 1000;
+    if (distanceMeters <= thresholdM) return 1;
+    const tierSizeM = Math.max(cfg.tierSizeKm * 1000, 1);
+    return 2 + Math.floor((distanceMeters - thresholdM) / tierSizeM);
+  }
+
+  function fareOf(t){
+    return cfg.base
+      + Math.round(tieredUnitFare(t.day, cfg.day))
+      + Math.round(tieredUnitFare(t.night, cfg.night))
+      + Math.floor(t.wait / cfg.waitUnit) * cfg.waitCharge
+      + t.luggage * cfg.luggageFee;
+  }
+
+  function tick(){
+    if (!gpsOn){
+      if (Date.now() - lastGpsMs > 8000) gpsWeak = true;
+      render();
+      return;
+    }
+    lastGpsMs = Date.now();
+    gpsWeak = false;
+
+    // شبیه‌سازی نویز GPS: وقتی حسگر چرخ نصب نیست، عدد GPS کمی می‌لرزد؛
+    // وقتی نصب است، عدد چرخ (مرجع دقیق) استفاده می‌شود -- همان چیزی که در
+    // دنیای واقعی، تفاوت GPS تنها با GPS+چرخ را نشان می‌دهد.
+    const trueMeters = (speedKmh / 3.6) * 1; // deltaSeconds = 1
+    const gpsNoise = trueMeters > 0 ? (Math.random() - 0.5) * trueMeters * 0.5 : (Math.random() * 1.4);
+    const gpsSegment = Math.max(0, trueMeters + gpsNoise);
+    const wheelMeters = trueMeters;
+
+    const distanceCandidate = wheelOn ? wheelMeters : gpsSegment;
+    lastSourceWheel = wheelOn;
+
+    const sane = distanceCandidate < 200;
+    lastWasWaiting = false;
+
+    if (sane){
+      const v = distanceCandidate / 1;
+      const night = isNightHour(hour);
+      if (v < cfg.minSpeed){
+        lastWasWaiting = true;
+        trips.forEach(t => { if (t.state === 'active') t.wait += 1; });
+      } else if (distanceCandidate > 0.8){
+        trips.forEach(t => { if (t.state === 'active'){ if (night) t.night += distanceCandidate; else t.day += distanceCandidate; } });
+      }
+    }
+    render();
+  }
+  setInterval(tick, 1000);
+
+  // ---------------- passenger button cycle: idle -> active -> finished -> idle ----------------
+  function paxAction(i){
+    const t = trips[i];
+    if (t.state === 'idle'){
+      t.state = 'active'; t.day = 0; t.night = 0; t.wait = 0; t.luggage = 0;
+    } else if (t.state === 'active'){
+      history.unshift({
+        slot: t.id, distance: t.day + t.night, wait: t.wait, luggage: t.luggage,
+        fare: fareOf(t), hour: hour
+      });
+      t.state = 'finished';
+    } else {
+      t.state = 'idle'; t.day = 0; t.night = 0; t.wait = 0; t.luggage = 0;
+    }
+    render();
+  }
+
+  // دکمه‌ی هزینه‌ی بار: فقط وقتی مسافر سوار است (active) فعال است؛ هر تپ کوتاه
+  // یک واحد بار اضافه می‌کند، نگه‌داشتن (hold) شمارنده را صفر می‌کند.
+  function addLuggage(i){
+    const t = trips[i];
+    if (t.state !== 'active') return;
+    t.luggage += 1;
+    render();
+  }
+  function resetLuggage(i){
+    const t = trips[i];
+    if (t.state !== 'active') return;
+    t.luggage = 0;
+    render();
+  }
+
+  // ---------------- render ----------------
+  const screenEl = document.getElementById('screen');
+  const paxGrid = document.getElementById('paxGrid');
+  const histBody = document.getElementById('histBody');
+
+  function stateLabel(s){ return s==='idle' ? 'بدون مسافر' : s==='active' ? 'در حال سفر' : 'تمام‌شده'; }
+  function stateBadgeClass(s){ return s==='active' ? 'active' : s==='finished' ? 'finished' : ''; }
+  function btnLabel(s){ return s==='idle' ? 'سوار شد' : s==='active' ? 'پیاده شد' : 'ریست بزن'; }
+  function btnClass(s){ return s==='idle' ? 'start' : s==='active' ? 'stop' : 'reset'; }
+
+  function buildPaxCards(){
+    paxGrid.innerHTML = trips.map((t,i) => `
+      <div class="pax-card">
+        <div class="pax-top">
+          <span class="pax-name"><span class="pax-led ${t.state==='active' ? 'on':''}"></span>مسافر ${i+1}</span>
+          <span class="badge ${stateBadgeClass(t.state)}">${stateLabel(t.state)}</span>
+        </div>
+        <div class="pax-stats">
+          fare: <b>${fareOf(t).toLocaleString()}T</b><br>
+          dist: <b>${Math.round(t.day+t.night)}m</b> &nbsp; wait: <b>${Math.round(t.wait)}s</b><br>
+          tier: <b>${currentTier(t.day+t.night)}</b>${currentTier(t.day+t.night) > 1 ? ' <span class="fa">(تخفیف پله‌ای فعال)</span>' : ''}
+        </div>
+        <button class="btn ${btnClass(t.state)}" data-i="${i}">${btnLabel(t.state)}</button>
+        <button class="btn-luggage ${t.state!=='active' ? 'is-disabled':''}" data-i="${i}">
+          🧳 هزینه‌ی بار (${t.luggage})
+        </button>
+      </div>
+    `).join('');
+
+    paxGrid.querySelectorAll('.btn:not(.btn-luggage)').forEach(b=>{
+      b.addEventListener('click', ()=> paxAction(parseInt(b.dataset.i,10)));
+    });
+  }
+
+  // دکمه‌ی بار با delegation روی paxGrid (که هیچ‌وقت از نو ساخته نمی‌شود) پیاده شده،
+  // نه روی هر دکمه به‌طور جداگانه -- چون render() هر ثانیه کل کارت‌ها را از نو
+  // می‌سازد و ممکن است دقیقاً وسط نگه‌داشتن دکمه (۶۰۰ میلی‌ثانیه) یک رندر جدید
+  // اتفاق بیفتد. اگر وضعیتِ «در حال نگه‌داشتن» را روی خودِ دکمه نگه می‌داشتیم،
+  // با ساخته‌شدن دکمه‌ی تازه، آن وضعیت گم می‌شد و ممکن بود هم ریست شود هم
+  // اشتباهی یک واحد اضافه. اینجا وضعیت هر نگه‌داشتن در luggageHold (خارج از DOM)
+  // نگه داشته می‌شود، پس با عوض شدن خودِ دکمه هم درست کار می‌کند.
+  const luggageHold = {};
+  function clearLuggageHold(i, btn){
+    const st = luggageHold[i];
+    if (st) clearTimeout(st.timer);
+    if (btn) btn.classList.remove('holding');
+    paxGrid.querySelectorAll(`.btn-luggage[data-i="${i}"]`).forEach(b=>b.classList.remove('holding'));
+  }
+  paxGrid.addEventListener('pointerdown', e=>{
+    const btn = e.target.closest('.btn-luggage');
+    if (!btn) return;
+    const i = parseInt(btn.dataset.i, 10);
+    if (trips[i].state !== 'active') return;
+    btn.classList.add('holding');
+    luggageHold[i] = { triggered:false, timer: setTimeout(()=>{
+      luggageHold[i].triggered = true;
+      clearLuggageHold(i);
+      resetLuggage(i);
+    }, 600) };
+  });
+  paxGrid.addEventListener('pointerup', e=>{
+    const btn = e.target.closest('.btn-luggage');
+    if (!btn) return;
+    const i = parseInt(btn.dataset.i, 10);
+    const st = luggageHold[i];
+    clearLuggageHold(i, btn);
+    if (!st || !st.triggered) addLuggage(i);
+    delete luggageHold[i];
+  });
+  paxGrid.addEventListener('pointercancel', e=>{
+    const btn = e.target.closest('.btn-luggage');
+    if (!btn) return;
+    const i = parseInt(btn.dataset.i, 10);
+    clearLuggageHold(i, btn);
+    delete luggageHold[i];
+  });
+
+  function buildScreen(){
+    const hh = String(hour).padStart(2,'0');
+    const night = isNightHour(hour);
+    let lines = [];
+
+    let top = `${hh}:00  ${night ? 'NIGHT' : 'DAY'}`;
+    if (lastSourceWheel) top += ' [W]';
+    lines.push({text: top});
+
+    if (gpsWeak){
+      lines.push({text:'** GPS WEAK **', cls:'warn'});
+    } else if (lastWasWaiting){
+      lines.push({text:'-- waiting (traffic) --', cls:'dim'});
+    }
+
+    trips.forEach((t,i)=>{
+      if (t.state === 'idle'){
+        lines.push({text:`P${i+1}: -- idle --`, cls:'dim'});
+      } else {
+        let s = `P${i+1}: ${fareOf(t)}T ${Math.round(t.day+t.night)}m`;
+        if (t.wait > 0) s += ` w${Math.round(t.wait)}s`;
+        if (t.luggage > 0) s += ` b${t.luggage}`;
+        if (t.state === 'finished') s += ' *';
+        lines.push({text:s});
+      }
+    });
+
+    screenEl.innerHTML = lines.map(l=>`<div class="screen-line ${l.cls||''}">${l.text}</div>`).join('');
+  }
+
+  function buildHistory(){
+    if (history.length === 0){
+      histBody.innerHTML = `<tr class="empty-row"><td colspan="6">هنوز سفری تمام نشده</td></tr>`;
+    } else {
+      histBody.innerHTML = history.map(r => `
+        <tr>
+          <td>مسافر ${r.slot+1}</td>
+          <td class="mono">${Math.round(r.distance)}m</td>
+          <td class="mono">${Math.round(r.wait)}s</td>
+          <td class="mono">${r.luggage}</td>
+          <td class="mono">${String(r.hour).padStart(2,'0')}:00</td>
+          <td class="mono">${r.fare.toLocaleString()}</td>
+        </tr>
+      `).join('');
+    }
+    document.getElementById('sumTrips').textContent = history.length;
+    document.getElementById('sumDist').textContent = Math.round(history.reduce((s,r)=>s+r.distance,0)) + 'm';
+    document.getElementById('sumFare').textContent = history.reduce((s,r)=>s+r.fare,0).toLocaleString();
+  }
+
+  function updateLeds(){
+    document.getElementById('ledPower').className = 'led on-good';
+    document.getElementById('ledGps').className = 'led ' + (gpsWeak ? 'on-bad' : (gpsOn ? 'on-good' : 'on-bad'));
+    document.getElementById('ledWheel').className = 'led ' + (wheelOn ? 'on-amber' : '');
+    const full = trips.every(t => t.state === 'active');
+    document.getElementById('ledFull').className = 'led ' + (full ? 'on-full' : '');
+  }
+
+  function render(){
+    buildPaxCards();
+    buildScreen();
+    buildHistory();
+    updateLeds();
+  }
+
+  // ---------------- driving-condition controls ----------------
+  document.getElementById('gpsToggle').addEventListener('change', e=>{
+    gpsOn = e.target.checked;
+    if (gpsOn) { gpsWeak = false; lastGpsMs = Date.now(); }
+    render();
+  });
+  document.getElementById('wheelToggle').addEventListener('change', e=>{
+    wheelOn = e.target.checked;
+    render();
+  });
+  const speedSlider = document.getElementById('speedSlider');
+  const speedVal = document.getElementById('speedVal');
+  const speedNote = document.getElementById('speedNote');
+  function renderSpeedNote(){
+    speedVal.textContent = speedKmh.toFixed(0) + ' km/h';
+    const thresholdKmh = cfg.minSpeed * 3.6;
+    speedNote.textContent = (speedKmh / 3.6) < cfg.minSpeed
+      ? `زیر آستانه (${thresholdKmh.toFixed(1)} km/h) → کرایه‌ی زمان انتظار حساب می‌شود`
+      : `بالای آستانه (${thresholdKmh.toFixed(1)} km/h) → کرایه‌ی مسافت حساب می‌شود`;
+  }
+  speedSlider.addEventListener('input', e=>{ speedKmh = parseFloat(e.target.value); renderSpeedNote(); });
+
+  const hourSlider = document.getElementById('hourSlider');
+  const hourVal = document.getElementById('hourVal');
+  const hourNote = document.getElementById('hourNote');
+  function renderHourNote(){
+    hourVal.textContent = String(hour).padStart(2,'0') + ':00';
+    hourNote.textContent = isNightHour(hour) ? 'نرخ شب فعال است' : 'نرخ روز فعال است';
+  }
+  hourSlider.addEventListener('input', e=>{ hour = parseInt(e.target.value,10); renderHourNote(); render(); });
+
+  document.getElementById('clearHistBtn').addEventListener('click', ()=>{ history = []; buildHistory(); });
+
+  // ---------------- rate settings ----------------
+  function bindCfgField(id, key, parser){
+    document.getElementById(id).addEventListener('input', e=>{
+      const v = parser(e.target.value);
+      if (!isNaN(v)) { cfg[key] = v; render(); renderSpeedNote(); renderHourNote(); }
+    });
+  }
+  bindCfgField('cfgBase','base',parseFloat);
+  bindCfgField('cfgUnit','unit',parseFloat);
+  bindCfgField('cfgDay','day',parseFloat);
+  bindCfgField('cfgNight','night',parseFloat);
+  bindCfgField('cfgNightStart','nightStart',parseInt);
+  bindCfgField('cfgNightEnd','nightEnd',parseInt);
+  bindCfgField('cfgWaitUnit','waitUnit',parseFloat);
+  bindCfgField('cfgWaitCharge','waitCharge',parseFloat);
+  document.getElementById('cfgMinSpeed').addEventListener('input', e=>{
+    const kmh = parseFloat(e.target.value);
+    if (!isNaN(kmh)) { cfg.minSpeed = kmh / 3.6; render(); renderSpeedNote(); }
+  });
+  bindCfgField('cfgLuggage','luggageFee',parseFloat);
+  bindCfgField('cfgTierStart','tierStartKm',parseFloat);
+  bindCfgField('cfgTierSize','tierSizeKm',parseFloat);
+  bindCfgField('cfgTierReduction','tierReductionPct',parseFloat);
+  bindCfgField('cfgTierFloor','tierFloorPct',parseFloat);
+
+  // ---------------- init ----------------
+  renderSpeedNote();
+  renderHourNote();
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 #pragma once
 #include "GPSProvider.h"
+#include "SimulatedWheelPulseProvider.h"
 #include <cmath>
 #include <cstdlib>
 #include <chrono>
@@ -14,14 +15,18 @@ inline unsigned long desktopNowMs() {
 }
 
 // یک منبع GPS ساختگی: هر بار که update() صدا زده شود، یک قدم کوچک
-// (حدود ۸ متر، معادل تقریبی سرعت شهری) در یک جهت نیمه‌تصادفی حرکت می‌کند.
-// دقیقاً همان اینترفیس GPSProvider را پیاده می‌کند، پس در آینده با
-// Esp32GPSProvider (که از ماژول واقعی می‌خواند) بدون تغییر جای بقیه‌ی کد عوض می‌شود.
+// (حدود ۸ متر، معادل تقریبی سرعت شهری) در یک جهت نیمه‌تصادفی حرکت می‌کند --
+// مگر اینکه setMoving(false) صدا زده شده باشد (شبیه‌سازی توقف در ترافیک، برای
+// تست کرایه‌ی زمان انتظار). دقیقاً همان اینترفیس GPSProvider را پیاده می‌کند، پس
+// در آینده با Esp32GPSProvider (که از ماژول واقعی می‌خواند) بدون تغییر جای بقیه‌ی
+// کد عوض می‌شود.
 class SimulatedGPSProvider : public GPSProvider {
     double lat, lon, bearing;
     UpdateCallback updateCb;
     ErrorCallback errorCb;
     bool enabled = true;
+    double stepMeters = 8.0;
+    SimulatedWheelPulseProvider* wheel = nullptr; // اختیاری: هم‌زمان با GPS، پالس تزریق کن
 
 public:
     SimulatedGPSProvider(double startLat = 35.700000, double startLon = 51.400000)
@@ -36,9 +41,16 @@ public:
     // می‌شود، پس منطق تشخیص قطعی سیگنال واقعاً اجرا و آزمایش می‌شود.
     void setEnabled(bool e) { enabled = e; }
 
+    // برای تست کرایه‌ی زمان انتظار: false یعنی ماشین ایستاده (ترافیک/چراغ‌قرمز) --
+    // خوانش‌های GPS همچنان می‌آیند (برخلاف setEnabled) ولی بدون هیچ جابه‌جایی.
+    void setMoving(bool moving) { stepMeters = moving ? 8.0 : 0.0; }
+
+    // اگر وصل شود، هر بار که GPS قدم واقعی برمی‌دارد، همان مقدار به شمارنده‌ی
+    // حسگر چرخ هم اضافه می‌شود (هم‌بستگی طبیعیِ حرکت واقعی ماشین با هر دو حسگر).
+    void attachWheel(SimulatedWheelPulseProvider* w) { wheel = w; }
+
     void update() override {
         if (!enabled) return;
-        double stepMeters = 8.0;
         double R = 6371000.0;
         double brng = bearing * M_PI / 180.0;
         double lat1 = lat * M_PI / 180.0, lon1 = lon * M_PI / 180.0;
@@ -51,6 +63,8 @@ public:
         lat = lat2 * 180.0 / M_PI;
         lon = lon2 * 180.0 / M_PI;
         bearing += ((rand() % 1000) / 1000.0 - 0.5) * 25.0;
+
+        if (wheel && wheel->isInstalled() && stepMeters > 0) wheel->injectDistance(stepMeters);
 
         if (updateCb) updateCb(GPSReading{lat, lon, 5.0, desktopNowMs()});
     }
