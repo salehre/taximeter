@@ -28,7 +28,7 @@ public:
 
     // true برمی‌گرداند اگر واقعاً چیزی برای بازیابی وجود داشت
     bool restoreActiveTrips(TaxiMeterSystem& system) {
-        prefs.begin("taximeter", true); // read-only
+        prefs.begin("taximeter", false); // خواندن/نوشتن: وگرنه در اولین بوت (namespace هنوز نیست) خطای NOT_FOUND چاپ می‌شود
         bool hasSave = prefs.getBool("hasSave", false);
         if (!hasSave) { prefs.end(); return false; }
 
@@ -107,7 +107,7 @@ public:
     // (یعنی برای «امروز» یک تاریخچه‌ی خالی درست است، نه دستکاری‌شده).
     // true برمی‌گرداند اگر واقعاً چیزی از همان روز بازیابی شد.
     bool loadTodaysHistory(TaxiMeterSystem& system) {
-        prefs.begin("taxihist", true);
+        prefs.begin("taxihist", false);
 
         long savedDay = prefs.getLong("dayIndex", -1);
         long today = system.currentDayIndex();
@@ -141,7 +141,7 @@ public:
 
     PersistedDailyTotals loadTodaysTotals(TaxiMeterSystem& system) {
         PersistedDailyTotals t;
-        prefs.begin("taxihist", true);
+        prefs.begin("taxihist", false);
         long savedDay = prefs.getLong("dayIndex", -1);
         long today = system.currentDayIndex();
         if (savedDay >= 0 && (today < 0 || savedDay == today)) {

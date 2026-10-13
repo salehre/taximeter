@@ -69,8 +69,8 @@
 #endif
 
 // ----- fill in your Wi-Fi so the clock can sync via NTP (needed for day/night rate) -----
-const char* WIFI_SSID = "Galaxy A21s";
-const char* WIFI_PASSWORD = "soiq1235";
+const char* WIFI_SSID = "YOUR_WIFI_NAME";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
 // اختلاف منطقه‌ی زمانی شما با UTC، بر حسب ثانیه (برای تشخیص درستِ ساعتِ شب/روز).
 // پیش‌فرض +۳:۳۰ (ایران) است. برای مناطق دیگر عوضش کنید، مثلاً:
@@ -108,6 +108,10 @@ const bool PASSENGER_DISPLAYS_INSTALLED = false;
 // چراغ «پر» -- وقتی هر سه مسافر هم‌زمان سوارند (جای خالی نیست) روشن می‌شود.
 const int FULL_LED_PIN = 13;
 
+// تشخیص قطع برق ماشین -- اختیاری. تا وقتی مدار تقسیم‌ولتاژ ۱۲ ولت را به
+// GPIO34 وصل نکرده‌اید، این را false نگه دارید؛ وگرنه پین آزاد است، همیشه
+// «ولتاژ پایین» می‌خواند و سیستم مدام فکر می‌کند برق قطع شده.
+const bool POWER_SENSE_INSTALLED = false;
 const int POWER_SENSE_PIN = 34;       // ADC pin reading the (divided-down) 12V car rail
 const int POWER_LOST_ADC_THRESHOLD = 1200; // tune this to your divider ratio; see README
 
@@ -414,11 +418,13 @@ void loop() {
   handleSerialCommands();
 
   // --- تشخیص قطع برق ماشین ---
-  int powerReading = analogRead(POWER_SENSE_PIN);
-  if (powerReading < POWER_LOST_ADC_THRESHOLD) {
-    handlePowerLoss();
-  } else {
-    powerLossHandled = false; // برق برگشت، دوباره آماده‌ی تشخیص قطعی بعدی باش
+  if (POWER_SENSE_INSTALLED) {
+    int powerReading = analogRead(POWER_SENSE_PIN);
+    if (powerReading < POWER_LOST_ADC_THRESHOLD) {
+      handlePowerLoss();
+    } else {
+      powerLossHandled = false; // برق برگشت، دوباره آماده‌ی تشخیص قطعی بعدی باش
+    }
   }
 
   // --- خواندن دکمه‌ها ---
