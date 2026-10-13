@@ -14,14 +14,14 @@ class Esp32PassengerDisplay : public PassengerDisplay {
     Adafruit_SSD1306 oled;
     unsigned long messageUntil = 0;
     static const unsigned long MESSAGE_DURATION_MS = 1500;
-    static const uint8_t OLED_I2C_ADDRESS = 0x3C;
+    static const uint8_t PASSENGER_OLED_I2C_ADDRESS = 0x3C;
 
 public:
     Esp32PassengerDisplay(Tca9548a& m, uint8_t ch) : mux(m), channel(ch), oled(128, 64, &Wire, -1) {}
 
     void begin() override {
         mux.selectChannel(channel);
-        if (!oled.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
+        if (!oled.begin(SSD1306_SWITCHCAPVCC, PASSENGER_OLED_I2C_ADDRESS)) {
             Serial.print(F("[Esp32PassengerDisplay] OLED on mux channel "));
             Serial.print(channel);
             Serial.println(F(" not found -- continuing without it."));

@@ -69,7 +69,7 @@
 #endif
 
 // ----- fill in your Wi-Fi so the clock can sync via NTP (needed for day/night rate) -----
-const char* WIFI_SSID = "Galaxy A21 s";
+const char* WIFI_SSID = "Galaxy A21s";
 const char* WIFI_PASSWORD = "soiq1235";
 
 // اختلاف منطقه‌ی زمانی شما با UTC، بر حسب ثانیه (برای تشخیص درستِ ساعتِ شب/روز).
