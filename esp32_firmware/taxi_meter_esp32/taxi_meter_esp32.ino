@@ -462,13 +462,15 @@ void loop() {
   }
 
   // چاپ دوره‌ایِ وضعیت (هر ۲ ثانیه) فقط وقتی لازم است که حداقل یک مسافر سوار
-  // یا در انتظار پرداخت باشد. وقتی هر سه صندلی خالی‌اند، چیزی برای نشان دادن
+  // و در حال سفر باشد. وقتی هر سه صندلی خالی‌اند، چیزی برای نشان دادن
   // نیست و چاپِ مداوم فقط مانع تایپ دستور در Serial Monitor می‌شود. هر وقت
   // خواستید وضعیت را ببینید، دستور status را بزنید.
   if (millis() - lastPrint > 2000) {
     lastPrint = millis();
     bool anyTrip = false;
-    for (auto& t : system_.trips) anyTrip = anyTrip || (t.state != TripState::IDLE);
+    // فقط سفرِ در حال انجام (ACTIVE) عددش تغییر می‌کند؛ مسافرِ FINISHED کرایه‌اش
+    // قفل شده و یک‌بار هنگام پیاده شدن چاپ شده، پس چاپ مداومش بی‌فایده است.
+    for (auto& t : system_.trips) anyTrip = anyTrip || (t.state == TripState::ACTIVE);
     if (anyTrip) printStatus();
     else display.showStatus(system_, clock_.currentHour()); // نمایشگر OLED همچنان تازه می‌شود
   }
